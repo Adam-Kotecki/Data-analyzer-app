@@ -15,16 +15,51 @@ class Window(QWidget):
         self.layout = QVBoxLayout()
         self.layout.setAlignment(QtCore.Qt.AlignCenter)
         
-        self.btn1 = QPushButton("Select file")
-        self.btn1.clicked.connect(self.get_data)
-        self.layout.addWidget(self.btn1)
+        self.l1 = QLabel("Please select at leat one measure")
+        self.l1.setHidden(True)
         self.table = QTableWidget()
+        self.check_mean = QCheckBox("Mean")
+        self.check_max = QCheckBox("Max value")
+        self.check_min = QCheckBox("Min value")
+        self.check_std = QCheckBox("Standard deviation")
+        self.check_var = QCheckBox("Variation")
+        self.btn1 = QPushButton("Select file")
+        
+        self.check_mean.setChecked(True)
+        self.check_max.setChecked(True)
+        self.check_min.setChecked(True)
+        
+        self.btn1.clicked.connect(self.get_data)
+        
+        self.layout.addWidget(self.l1)
+        self.layout.addWidget(self.check_mean)
+        self.layout.addWidget(self.check_max)
+        self.layout.addWidget(self.check_min)
+        self.layout.addWidget(self.check_std)
+        self.layout.addWidget(self.check_var)
+        self.layout.addWidget(self.btn1)
         self.setLayout(self.layout)
         
-        # self.l1 = QLabel("Select category of data:")
-
     def get_data(self):
-        print("funkcja dziala")
+        
+        measures = []
+        
+        if self.check_mean.isChecked():
+            measures.append("mean")
+        if self.check_max.isChecked():
+            measures.append("max")
+        if self.check_min.isChecked():
+            measures.append("min")
+        if self.check_std.isChecked():
+            measures.append("std")
+        if self.check_var.isChecked():
+            measures.append("var")
+            
+        if len(measures) == 0:
+            self.l1.setHidden(False)
+            self.l1.setStyleSheet("color : red")
+            return
+        
         path = QtWidgets.QFileDialog.getOpenFileName(self, 'Hey! Select a File')
         file = path[0]
         ext = os.path.splitext(file)[1]
@@ -50,15 +85,12 @@ class Window(QWidget):
             if value == "int64" or value == "float64":
                 numeric_cols.append(index)
         
-        measures = ["mean", "max", "min", "std"]
-        
         t_rows = len(numeric_cols)
         t_cols = len(measures)
         
         self.table.setRowCount(t_rows)
         self.table.setColumnCount(t_cols)
         
-      
         def set_row_color(table, row_index):
             if row_index % 2 == 0:
                 for column in range(table.columnCount()):
@@ -76,6 +108,8 @@ class Window(QWidget):
                     table.setItem(row_id, col_id, QTableWidgetItem(str(df[f"{name}"].min() )))
                 if m == "std":
                     table.setItem(row_id, col_id, QTableWidgetItem(str(round(df[f"{name}"].std(), 2) )))
+                if m == "var":
+                    table.setItem(row_id, col_id, QTableWidgetItem(str(round(df[f"{name}"].var(), 2) )))
                 col_id = col_id + 1
         
         row_id = 0
