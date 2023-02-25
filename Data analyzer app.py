@@ -1,5 +1,7 @@
+
 from PyQt5.QtWidgets import QApplication, QMainWindow, QCheckBox, QLabel, \
-QFileDialog, QVBoxLayout, QWidget, QPushButton, QMessageBox, QTableWidget, QTableWidgetItem
+QFileDialog, QVBoxLayout, QWidget, QPushButton, QMessageBox, QTableWidget, \
+QFrame, QTableWidgetItem, QWidget, QStackedLayout, QHeaderView
 from PyQt5 import QtCore , QtWidgets, QtGui
 from PyQt5.QtCore import Qt
 import sys
@@ -7,17 +9,20 @@ import pandas as pd
 import os
 
 class Window(QWidget):
+    
     def __init__(self):
         super().__init__(parent=None)
         self.setWindowTitle("Data analyzer")
-        self.setFixedSize(400, 500)
-
-        self.layout = QVBoxLayout()
-        self.layout.setAlignment(QtCore.Qt.AlignCenter)
+        self.setFixedSize(450, 550)
+        
+        self.stackedLayout = QStackedLayout()
+        
+        self.page1 = QWidget()
+        self.layout1 = QVBoxLayout()
+        self.layout1.setAlignment(QtCore.Qt.AlignCenter)
         
         self.l1 = QLabel("Please select at leat one measure")
         self.l1.setHidden(True)
-        self.table = QTableWidget()
         self.check_mean = QCheckBox("Mean")
         self.check_max = QCheckBox("Max value")
         self.check_min = QCheckBox("Min value")
@@ -28,18 +33,61 @@ class Window(QWidget):
         self.check_mean.setChecked(True)
         self.check_max.setChecked(True)
         self.check_min.setChecked(True)
-        
         self.btn1.clicked.connect(self.get_data)
         
-        self.layout.addWidget(self.l1)
-        self.layout.addWidget(self.check_mean)
-        self.layout.addWidget(self.check_max)
-        self.layout.addWidget(self.check_min)
-        self.layout.addWidget(self.check_std)
-        self.layout.addWidget(self.check_var)
-        self.layout.addWidget(self.btn1)
-        self.setLayout(self.layout)
+        self.layout1.addWidget(self.l1)
+        self.layout1.addWidget(self.check_mean)
+        self.layout1.addWidget(self.check_max)
+        self.layout1.addWidget(self.check_min)
+        self.layout1.addWidget(self.check_std)
+        self.layout1.addWidget(self.check_var)
+        self.layout1.addWidget(self.btn1)
+       
+        self.page1.setLayout(self.layout1)
+        self.stackedLayout.addWidget(self.page1)
         
+        #---------------------------------------
+        
+        self.page2 = QWidget()
+        self.layout2 = QVBoxLayout()
+        self.layout2.setAlignment(QtCore.Qt.AlignCenter)
+        
+        self.l2 = QLabel("Data insights:")
+        self.l3 = QLabel("")
+        self.l4 = QLabel("")
+        self.line1 = QFrame()
+        self.line1.setFrameShape(QFrame.HLine)
+        self.l5 = QLabel("Numerical attributes:")
+        self.table = QTableWidget()
+        self.line2 = QFrame()
+        self.line2.setFrameShape(QFrame.HLine)
+        self.l6 = QLabel("Categorical attributes:")
+        self.table2 = QTableWidget()
+        self.back_btn = QPushButton("Go back")
+        
+        self.back_btn.clicked.connect(self.switchPage)
+        
+        self.layout2.addWidget(self.l2)
+        self.layout2.addWidget(self.l3)
+        self.layout2.addWidget(self.l4)
+        self.layout2.addWidget(self.line1)
+        self.layout2.addWidget(self.l5)
+        self.layout2.addWidget(self.table)
+        self.layout2.addWidget(self.line2)
+        self.layout2.addWidget(self.l6)
+        self.layout2.addWidget(self.table2)
+        self.layout2.addWidget(self.back_btn)
+        
+        self.page2.setLayout(self.layout2)
+        self.stackedLayout.addWidget(self.page2)
+        
+        self.setLayout(self.stackedLayout)
+        
+        
+    def switchPage(self):
+        # print(self.stackedLayout.currentIndex())
+        self.stackedLayout.setCurrentIndex(0)
+    
     def get_data(self):
         
         measures = []
@@ -76,76 +124,98 @@ class Window(QWidget):
             msg.exec()
             return
         
+        self.stackedLayout.setCurrentIndex(1)
+        
         rows_count = str(df.shape[0])
         col_count = str(df.shape[1])
-        print("Dataset has " + rows_count + " rows and " + col_count + " columns")
         
         numeric_cols = []
         for index, value in df.dtypes.items():
             if value == "int64" or value == "float64":
                 numeric_cols.append(index)
+                
+        self.l3.setText("Dataset has " + rows_count + " rows and " + col_count + " columns, including " + str(len(numeric_cols)) + " numeric attributes.")
+        self.l3.setWordWrap(True)
+        self.l4.setText("It has " + str(df.isnull().sum().sum()) + " missing values.")
         
         t_rows = len(numeric_cols)
         t_cols = len(measures)
         
-        self.table.setRowCount(t_rows)
-        self.table.setColumnCount(t_cols)
-        
-        def set_row_color(table, row_index):
-            if row_index % 2 == 0:
-                for column in range(table.columnCount()):
-                    table.item(row_index, column).setBackground(QtGui.QColor("#ebecf0"))
-                    
-        # function for adding dynamic number of columns:
-        def calculate(table, measure_list, row_id, name):
-            col_id = 0
-            for m in measure_list:
-                if m == "mean":
-                    table.setItem(row_id, col_id, QTableWidgetItem(str(round(df[f"{name}"].mean(), 2) )))
-                if m == "max":
-                    table.setItem(row_id, col_id, QTableWidgetItem(str(df[f"{name}"].max() )))
-                if m == "min":
-                    table.setItem(row_id, col_id, QTableWidgetItem(str(df[f"{name}"].min() )))
-                if m == "std":
-                    table.setItem(row_id, col_id, QTableWidgetItem(str(round(df[f"{name}"].std(), 2) )))
-                if m == "var":
-                    table.setItem(row_id, col_id, QTableWidgetItem(str(round(df[f"{name}"].var(), 2) )))
-                col_id = col_id + 1
-        
-        row_id = 0
-        
-        # filling in the table and seting rows colors:
-        for name in numeric_cols:
-            calculate(self.table, measures, row_id, name)
-            set_row_color(self.table, row_id)
-            row_id = row_id + 1
-        
-        # Setting labels and theirs color:
-        self.table.setVerticalHeaderLabels(numeric_cols)
-        self.table.setHorizontalHeaderLabels(measures)
-        stylesheet = "::section{Background-color: #b8e2f2}"
-        self.table.horizontalHeader().setStyleSheet(stylesheet)
-        self.table.verticalHeader().setStyleSheet(stylesheet)
-       
-        self.results_view()
+        if t_rows == 0:
+            self.line1.setParent(None)
+            self.l5.setParent(None)
+            self.table.setParent(None)
+        else:
+            self.table.setRowCount(t_rows)
+            self.table.setColumnCount(t_cols)
             
-    def results_view(self):
+            def set_row_color(table, row_index):
+                if row_index % 2 == 0:
+                    for column in range(table.columnCount()):
+                        table.item(row_index, column).setBackground(QtGui.QColor("#ebecf0"))
+                        
+            # function for adding dynamic number of columns:
+            def calculate(table, measure_list, row_id, name):
+                col_id = 0
+                for m in measure_list:
+                    if m == "mean":
+                        table.setItem(row_id, col_id, QTableWidgetItem(str(round(df[f"{name}"].mean(), 2) )))
+                    if m == "max":
+                        table.setItem(row_id, col_id, QTableWidgetItem(str(df[f"{name}"].max() )))
+                    if m == "min":
+                        table.setItem(row_id, col_id, QTableWidgetItem(str(df[f"{name}"].min() )))
+                    if m == "std":
+                        table.setItem(row_id, col_id, QTableWidgetItem(str(round(df[f"{name}"].std(), 2) )))
+                    if m == "var":
+                        table.setItem(row_id, col_id, QTableWidgetItem(str(round(df[f"{name}"].var(), 2) )))
+                    col_id = col_id + 1
+            
+            row_id = 0
+            
+            # filling in the table and seting rows colors:
+            for name in numeric_cols:
+                calculate(self.table, measures, row_id, name)
+                set_row_color(self.table, row_id)
+                row_id = row_id + 1
+            
+            # Setting labels and theirs color:
+            self.table.setVerticalHeaderLabels(numeric_cols)
+            self.table.setHorizontalHeaderLabels(measures)
+            self.table.horizontalHeader().setStyleSheet("::section{Background-color: #b8e2f2}")
+            self.table.verticalHeader().setStyleSheet("::section{Background-color: #b8e2f2}") # ; font-weight: bold
+            self.table.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
+            self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        # ---------------------------------------------------------
+        # table for category attributes
+        category_cols = []
+        for index, value in df.dtypes.items():
+            if value != "int64" and value != "float64":
+                category_cols.append(index)
         
-        '''
-        for widgets in self.winfo_children():
-            widgets.destroy()
-        '''
+        t2_rows = len(category_cols)
+        t2_cols = 2
         
-        self.l1 = QLabel("Data insights:")
-        self.back_btn = QPushButton("Go back")
-        self.back_btn.clicked.connect(self.main_view)
-        self.layout.addWidget(self.l1)
-        self.layout.addWidget(self.table)
-        self.layout.addWidget(self.back_btn)
-         
-    def main_view(self):
-        pass
-        
+        if t2_rows == 0:
+            self.line2.setParent(None)
+            self.l6.setParent(None)
+            self.table2.setParent(None)
+        else:
+            self.table2.setRowCount(t2_rows)
+            self.table2.setColumnCount(t2_cols)
+            
+            for row_id , name in enumerate(category_cols):
+                self.table2.setItem(row_id, 0, QTableWidgetItem(str(df[f"{name}"].nunique() )))
+                self.table2.setItem(row_id, 1, QTableWidgetItem(str(df[f"{name}"].isna().sum() )))
+                set_row_color(self.table2, row_id)
+            
+            self.table2.setVerticalHeaderLabels(category_cols)
+            self.table2.setHorizontalHeaderLabels(["No. unique values", "Missing values"])
+            self.table2.horizontalHeader().setStyleSheet("::section{Background-color: #fed8b1}")
+            self.table2.verticalHeader().setStyleSheet("::section{Background-color: #fed8b1}") #; font-weight: bold
+            self.table2.verticalHeader().setSectionResizeMode(QHeaderView.Stretch)
+            self.table2.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+            
+            
 def main():
     app = QApplication([])
     window = Window()
@@ -160,3 +230,5 @@ if __name__ == "__main__":
     
     
     
+
+
