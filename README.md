@@ -11,4 +11,4 @@ This is my PyQt app which can be helpful when you need dataset overview. It uses
 Project is created with:
 * Python
 * Pandas
-* PyQt
+* PyQt5
