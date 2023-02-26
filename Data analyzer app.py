@@ -1,7 +1,7 @@
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QCheckBox, QLabel, \
 QFileDialog, QVBoxLayout, QWidget, QPushButton, QMessageBox, QTableWidget, \
-QFrame, QTableWidgetItem, QWidget, QStackedLayout, QHeaderView
+QFrame, QTableWidgetItem, QWidget, QStackedLayout, QHeaderView, QSpacerItem, QLayout
 from PyQt5 import QtCore , QtWidgets, QtGui
 from PyQt5.QtCore import Qt
 import sys
@@ -13,7 +13,7 @@ class Window(QWidget):
     def __init__(self):
         super().__init__(parent=None)
         self.setWindowTitle("Data analyzer")
-        self.setFixedSize(450, 550)
+        self.setFixedSize(460, 560)
         
         self.stackedLayout = QStackedLayout()
         
@@ -21,27 +21,38 @@ class Window(QWidget):
         self.layout1 = QVBoxLayout()
         self.layout1.setAlignment(QtCore.Qt.AlignCenter)
         
-        self.l1 = QLabel("Please select at leat one measure")
-        self.l1.setHidden(True)
+        self.title = QLabel("DATA ANALYZER")
+        self.title.setMinimumSize(80, 80)
+        self.title.setStyleSheet("font-size: 30px; ")
+        self.l1 = QLabel("Select needed measures:")
         self.check_mean = QCheckBox("Mean")
+        self.check_sum = QCheckBox("Sum")
         self.check_max = QCheckBox("Max value")
         self.check_min = QCheckBox("Min value")
         self.check_std = QCheckBox("Standard deviation")
         self.check_var = QCheckBox("Variation")
         self.btn1 = QPushButton("Select file")
+        self.btn1.setToolTip("Please select dataset file in xlsx or csv format")
+        self.spacer = QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.credit = QLabel("Created by Adam Kotecki")
+        self.credit.setAlignment(Qt.AlignCenter)
         
         self.check_mean.setChecked(True)
         self.check_max.setChecked(True)
         self.check_min.setChecked(True)
         self.btn1.clicked.connect(self.get_data)
         
+        self.layout1.addWidget(self.title)
         self.layout1.addWidget(self.l1)
         self.layout1.addWidget(self.check_mean)
         self.layout1.addWidget(self.check_max)
         self.layout1.addWidget(self.check_min)
+        self.layout1.addWidget(self.check_sum)
         self.layout1.addWidget(self.check_std)
         self.layout1.addWidget(self.check_var)
         self.layout1.addWidget(self.btn1)
+        self.layout1.addItem(self.spacer)
+        self.layout1.addWidget(self.credit)
        
         self.page1.setLayout(self.layout1)
         self.stackedLayout.addWidget(self.page1)
@@ -53,6 +64,7 @@ class Window(QWidget):
         self.layout2.setAlignment(QtCore.Qt.AlignCenter)
         
         self.l2 = QLabel("Data insights:")
+        self.l2.setStyleSheet("font-size: 15px; font-weight: bold")
         self.l3 = QLabel("")
         self.l4 = QLabel("")
         self.line1 = QFrame()
@@ -87,6 +99,8 @@ class Window(QWidget):
     def switchPage(self):
         # print(self.stackedLayout.currentIndex())
         self.stackedLayout.setCurrentIndex(0)
+        self.l1.setText("Select needed measures:")
+        self.l1.setStyleSheet("color : black")
     
     def get_data(self):
         
@@ -98,13 +112,15 @@ class Window(QWidget):
             measures.append("max")
         if self.check_min.isChecked():
             measures.append("min")
+        if self.check_sum.isChecked():
+            measures.append("sum")
         if self.check_std.isChecked():
             measures.append("std")
         if self.check_var.isChecked():
             measures.append("var")
             
         if len(measures) == 0:
-            self.l1.setHidden(False)
+            self.l1.setText("Please select at leat one measure")
             self.l1.setStyleSheet("color : red")
             return
         
@@ -134,12 +150,28 @@ class Window(QWidget):
             if value == "int64" or value == "float64":
                 numeric_cols.append(index)
                 
-        self.l3.setText("Dataset has " + rows_count + " rows and " + col_count + " columns, including " + str(len(numeric_cols)) + " numeric attributes.")
+        if len(numeric_cols) == 1:
+            end = ""
+        else:
+            end = "s"
+                
+        self.l3.setText("Dataset has " + rows_count + " rows and " + col_count + " columns, including " + str(len(numeric_cols)) + f" numeric attribute{end}.")
         self.l3.setWordWrap(True)
-        self.l4.setText("It has " + str(df.isnull().sum().sum()) + " missing values.")
+        
+        nulls = int(df.isnull().sum().sum())
+        if nulls == 1:
+            end = ""
+        else:
+            end = "s"
+        self.l4.setText("It has " + str(nulls) + f" missing value{end}.")
         
         t_rows = len(numeric_cols)
         t_cols = len(measures)
+        
+        def set_row_color(table, row_index):
+            if row_index % 2 == 0:
+                for column in range(table.columnCount()):
+                    table.item(row_index, column).setBackground(QtGui.QColor("#ebecf0"))
         
         if t_rows == 0:
             self.line1.setParent(None)
@@ -149,11 +181,6 @@ class Window(QWidget):
             self.table.setRowCount(t_rows)
             self.table.setColumnCount(t_cols)
             
-            def set_row_color(table, row_index):
-                if row_index % 2 == 0:
-                    for column in range(table.columnCount()):
-                        table.item(row_index, column).setBackground(QtGui.QColor("#ebecf0"))
-                        
             # function for adding dynamic number of columns:
             def calculate(table, measure_list, row_id, name):
                 col_id = 0
@@ -164,6 +191,8 @@ class Window(QWidget):
                         table.setItem(row_id, col_id, QTableWidgetItem(str(df[f"{name}"].max() )))
                     if m == "min":
                         table.setItem(row_id, col_id, QTableWidgetItem(str(df[f"{name}"].min() )))
+                    if m == "sum":
+                        table.setItem(row_id, col_id, QTableWidgetItem(str(round(df[f"{name}"].sum(), 2) )))
                     if m == "std":
                         table.setItem(row_id, col_id, QTableWidgetItem(str(round(df[f"{name}"].std(), 2) )))
                     if m == "var":
